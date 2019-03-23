@@ -14,6 +14,7 @@
 #include "Handshake.h"
 #include "TB6612.h"
 #include "Micro_Motor_Encoder.h"
+#include <PID_v1.h>
 #define SHARP_5CM_FRONT 21
 #define SHARP_5CM_FRONT_INT_NUMBER  2
 static HANDSHAKE_STATE Current_State = NORMAL;
@@ -28,32 +29,77 @@ long errorArray[20];
 int errorIndex = 0;
 long sumError = 0;
 long preverror, currerror, differror, sumerror, errorarray[10];
-int lmpwmbase = 140;
+int lmpwmbase = 50;
 int lmpwmadd  = 0;
-int rmpwmbase = 140;
+int rmpwmbase = 50;
 int rmpwmadd  = 0;
+String angleString = "";         // a String to hold incoming data
+int angleValue;
+bool angleArrived = false;  // whether the string is complete
+
+double Input,Output,Setpoint, Error;
+double Kp1=0.8, Ki1=0.2, Kd1=0.02;
+double Kp2=0.5, Ki2=0.02, Kd2=0.1;
+int Outputmap1=0;
+int Outputmap2=0;
+PID myPID(&Input, &Output, &Setpoint, Kp1, Ki1, Kd1, DIRECT); 
+
 void setup() {
   Serial.begin(115200);
   pinMode(SHARP_5CM_FRONT, INPUT);
   attachInterrupt(SHARP_5CM_FRONT_INT_NUMBER, Approach_5cm_Event, CHANGE);
   MicroMotorEncoderInit();
   //WiFi_Init();
-//  Motor.Stop(1000);
+  Input = 90; 
+  myPID.SetMode(AUTOMATIC);
+  myPID.SetSampleTime(125);
+  Motor.Stop(1000);
 }
-void loop() {
-  Motor.LeftMotorWrite(lmpwmbase - rmpwmadd, FORWARD);
-  Motor.RightMotorWrite(rmpwmbase + rmpwmadd, FORWARD);
-  delay(100);
-   currerror = leftTickCount - rightTickCount;//sag motor daha hizli donuyor
-   errorArray[errorIndex] = currerror;
-   for(int i = 0; i < 20; i++) sumError += errorArray[i];
-   errorIndex = (errorIndex + 1) % 20;
-   
-   differror = currerror - preverror;
-   rmpwmadd = (int)((float)currerror*(-0.9))+ (int)((float)0*differror*(-0.1)) + (int)((float)0*sumError*(-0.005));
-   preverror = currerror;
-   if((rmpwmbase + rmpwmadd) > 255)rmpwmadd = 255;
-   else if((rmpwmbase + rmpwmadd) < 0) rmpwmadd = 0;
+void loop(){
+  if (angleArrived){
+    Serial.println(angleString);
+    if(!angleString.equals("NOP"))
+        angleValue = angleString.toInt();
+    // clear the string:
+    Setpoint = (double)angleValue;
+    Error=Setpoint-Input;
+
+    if(Error<50){
+        myPID.SetTunings(Kp1, Ki1, Kd1);
+    }
+    else if(Error>=50){
+        myPID.SetTunings(Kp2, Ki2, Kd2);
+    }
+    myPID.Compute();
+ 
+    myPID.SetOutputLimits(-40,40);
+
+    Motor.LeftMotorWrite(lmpwmbase - Output, FORWARD);
+    Motor.RightMotorWrite(rmpwmbase + Output, FORWARD);
+  
+    angleString = "";
+    angleArrived = false;
+  }
+  
+
+
+  
+//  Motor.LeftMotorWrite(lmpwmbase - rmpwmadd, FORWARD);
+//  Motor.RightMotorWrite(rmpwmbase + rmpwmadd, FORWARD);
+//  delay(100);
+//   currerror = leftTickCount - rightTickCount;//sag motor daha hizli donuyor
+//   errorArray[errorIndex] = currerror;
+//   for(int i = 0; i < 20; i++) sumError += errorArray[i];
+//   errorIndex = (errorIndex + 1) % 20;
+//   
+//   differror = currerror - preverror;
+//   rmpwmadd = (int)((float)currerror*(-0.9))+ (int)((float)0*differror*(-0.1)) + (int)((float)0*sumError*(-0.005));
+//   preverror = currerror;
+//   if((rmpwmbase + rmpwmadd) > 255)rmpwmadd = 255;
+//   else if((rmpwmbase + rmpwmadd) < 0) rmpwmadd = 0;
+//   rightTickCount = 0;
+//   leftTickCount = 0;
+       
 //   if(error > 0){
 //       rmpwmadd = (int)((float)error*(0.5));
 //       if(rmpwmadd > 205)rmpwmadd = 205;
@@ -71,8 +117,7 @@ void loop() {
 //  Serial.print(currerror);Serial.print(" ");Serial.println(differror);
   
   //Serial.println(leftTickCount);
-  rightTickCount = 0;
-  leftTickCount = 0;
+  
   //delay(20);
   //  for (int i = 20; i <= 80; i = i + 10) {
   //    Motor.LeftMotorWrite(i, FORWARD);
@@ -250,10 +295,27 @@ void loop() {
   //  }
 }
 void Approach_5cm_Event(){
-    if(!digitalRead(SHARP_5CM_FRONT)){
-        Motor.Stop(0);   
-        while(!digitalRead(SHARP_5CM_FRONT));
-        Motor.Resume();    
-    }    
-
+//    if(!digitalRead(SHARP_5CM_FRONT)){
+//        Motor.Stop(0);   
+//        while(!digitalRead(SHARP_5CM_FRONT));
+//        Motor.Resume();    
+//    }    
+}
+/*
+  SerialEvent occurs whenever a new data comes in the hardware serial RX. This
+  routine is run between each time loop() runs, so using delay inside loop can
+  delay response. Multiple bytes of data may be available.
+*/
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the angleString:
+    angleString += inChar;
+    // if the incoming character is a newline, set a flag so the main loop can
+    // do something about it:
+    if (inChar == '\n') {
+      angleArrived = true;
+    }
+  }
 }
