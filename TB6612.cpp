@@ -52,7 +52,7 @@ void TB6612::RightMotorWrite(int rmw, bool dir){
 }
 void TB6612::Stop(int dly){
     if(dly <= 0){
-        digitalWrite(stdby, LOW);     
+        digitalWrite(stdby, LOW);   
     }
     else{
         digitalWrite(stdby, LOW);
