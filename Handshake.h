@@ -1,7 +1,7 @@
 #ifndef HANDSHAKE_H
 #define HANDSHAKE_H
 #include <Arduino.h>
-#define DEBUG_MODE    0
+#define DEBUG_MODE    1
 #define LED_RED       11
 #define LED_GREEN     12
 #define LED_BLUE      13

@@ -147,8 +147,7 @@ void WiFi_Init(){
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_YELLOW, OUTPUT);
-  Serial.begin(115200);//It can be modified due to Raspberry Pi Connection
-  Serial1.begin(115200);
+  
   Console_WriteCharArray("Press 'S' for Server, 'C' for Client: ");
   Console_WaitForResponse();
   char choose = Serial.read();
@@ -284,6 +283,5 @@ void WiFi_LED_Write(CATCH_STATE cat, HANDSHAKE_STATE state){
     digitalWrite(LED_BLUE, LOW);
     digitalWrite(LED_GREEN, LOW);
     digitalWrite(LED_YELLOW, LOW);
-  }
-  
+  } 
 }
